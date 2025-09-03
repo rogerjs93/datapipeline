@@ -37,3 +37,17 @@ Next steps
 - Add tests and CI
 - Add remote artifact storage (S3)
 
+## CI: Uploading artifacts to S3
+
+A GitHub Actions workflow `upload_artifacts.yml` (in `.github/workflows/`) can sync the `pipeline/artifacts/` directory to an S3 bucket on pushes to `main`.
+
+To enable this, add the following repository secrets in GitHub Settings → Secrets:
+
+- `AWS_ACCESS_KEY_ID` — AWS access key
+- `AWS_SECRET_ACCESS_KEY` — AWS secret
+- `AWS_REGION` — AWS region (for example `us-east-1`)
+- `S3_BUCKET` — bucket name where artifacts will be uploaded
+- `S3_PREFIX` — optional prefix/path within the bucket (can be left empty)
+
+The workflow will not try to upload if `S3_BUCKET` is not set.
+
