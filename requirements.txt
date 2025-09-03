@@ -7,4 +7,7 @@ scikit-learn
 joblib
 pytest
 boto3
+boto3
+
+streamlit
 # Note: The CI upload workflow installs the AWS CLI (awscli) briefly to perform `aws s3 sync`.
