@@ -51,3 +51,14 @@ To enable this, add the following repository secrets in GitHub Settings → Secr
 
 The workflow will not try to upload if `S3_BUCKET` is not set.
 
+## Run the UI (Streamlit)
+
+To run the lightweight Streamlit UI locally from the project root:
+
+```powershell
+python -m pip install -r requirements.txt
+streamlit run pipeline/ui.py
+```
+
+The UI allows uploading a source CSV/Parquet and selecting a mapping; it will run the pipeline and write outputs to the selected work directory.
+

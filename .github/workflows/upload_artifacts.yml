@@ -23,6 +23,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Sync artifacts to S3
+        # Upload artifacts to the workflow run so they can be inspected even if S3 is not configured
+      - name: Upload pipeline artifacts to workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-artifacts
+          path: pipeline/artifacts
+
+      - name: Sync artifacts to S3
         if: ${{ secrets.S3_BUCKET != '' }}
         run: |
           set -e
