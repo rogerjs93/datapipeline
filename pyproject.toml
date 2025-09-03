@@ -5,3 +5,7 @@ target-version = ['py312']
 [tool.ruff]
 line-length = 88
 select = ["E", "F", "W", "C", "B", "S"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
