@@ -1,0 +1,28 @@
+# Mapping for Example Source B (Parquet with near-canonical names)
+source:
+  format: parquet
+  table: measurements.parquet
+mappings:
+  demographics:
+    patient_id: patient_id
+    birth_date: birth_date
+    sex: sex
+    zip_code: zip_code
+  vitals:
+    patient_id: patient_id
+    timestamp: ts
+    heart_rate: heart_rate
+    systolic_bp: systolic
+    diastolic_bp: diastolic
+    temperature:
+      column: temp_c
+      unit: C
+  labs:
+    patient_id: patient_id
+    timestamp: lab_ts
+    test_name: test_name
+    value: value
+    unit: unit
+
+missing_policy:
+  default: impute

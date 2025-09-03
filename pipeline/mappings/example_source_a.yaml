@@ -1,0 +1,34 @@
+# Mapping for Example Source A (CSV with nonstandard columns)
+source:
+  format: csv
+  encoding: utf-8
+  table: enrollments.csv
+mappings:
+  demographics:
+    patient_id: PAT_ID
+    birth_date: DOB
+    sex: Gender
+    zip_code: ZIP
+  vitals:
+    patient_id: PAT_ID
+    timestamp: MeasuredAt
+    heart_rate: HR
+    systolic_bp: SBP
+    diastolic_bp: DBP
+    temperature:
+      column: Temp_F
+      unit: F
+  labs:
+    patient_id: PAT_ID
+    timestamp: LabTime
+    test_name: Test
+    value: Result
+    unit: Unit
+
+missing_policy:
+  default: flag
+  birth_date: drop
+  patient_id: required
+
+notes:
+  - Temperature in source is in Fahrenheit; mapping includes unit so ingestion will convert to Celsius.

@@ -1,0 +1,57 @@
+# Canonical schema for healthcare data ingestion
+# Defines top-level tables and canonical field names with types and units.
+
+demographics:
+  patient_id:
+    type: string
+    description: "Unique patient identifier (string)."
+  birth_date:
+    type: date
+    description: "Date of birth in ISO format (YYYY-MM-DD)."
+  sex:
+    type: categorical
+    allowed: [M, F, Other, Unknown]
+  race:
+    type: categorical
+  ethnicity:
+    type: categorical
+  zip_code:
+    type: string
+
+vitals:
+  patient_id:
+    type: string
+  timestamp:
+    type: datetime
+    description: "UTC timestamp in ISO 8601"
+  heart_rate:
+    type: numeric
+    unit: bpm
+  systolic_bp:
+    type: numeric
+    unit: mmHg
+  diastolic_bp:
+    type: numeric
+    unit: mmHg
+  respiratory_rate:
+    type: numeric
+    unit: breaths/min
+  temperature:
+    type: numeric
+    unit: C
+
+labs:
+  patient_id:
+    type: string
+  timestamp:
+    type: datetime
+  test_name:
+    type: string
+  loinc_code:
+    type: string
+  value:
+    type: numeric
+  unit:
+    type: string
+  reference_range:
+    type: string
