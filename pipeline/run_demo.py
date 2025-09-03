@@ -25,7 +25,7 @@ def make_synthetic_csv(path: Path):
     df.to_csv(path, index=False)
 
 
-def run_demo(mapping_path: str = None, work_dir: str = None):
+def run_demo(mapping_path: str = None, work_dir: str = None, s3_bucket: str = None, s3_prefix: str = ''):
     mappings_dir = BASE / 'mappings'
     if mapping_path:
         mapping = load_mapping(Path(mapping_path))
@@ -89,6 +89,16 @@ def run_demo(mapping_path: str = None, work_dir: str = None):
     # archive into artifacts/<checksum>/ and update master index
     from pipeline.artifacts import archive_artifacts
     archive_target = archive_artifacts(out, checksum)
+
+    # optionally upload archived artifacts to S3 if requested
+    if s3_bucket:
+        from pipeline.storage import upload_dir_to_s3
+
+        try:
+            s3_results = upload_dir_to_s3(archive_target, s3_bucket, s3_prefix)
+            print('Uploaded artifacts to S3:', s3_results)
+        except Exception as e:
+            print('S3 upload failed:', e)
 
     print('Demo complete. Standardized files, validation report, artifacts index, and archival written to:', out, '->', archive_target)
 
