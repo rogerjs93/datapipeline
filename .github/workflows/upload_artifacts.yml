@@ -3,9 +3,12 @@ name: Upload Artifacts to S3
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'pipeline/artifacts/**'
 
 jobs:
   upload:
+    if: "${{ github.actor != 'github-actions[bot]' }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,14 +25,11 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-      - name: Sync artifacts to S3
-        # Upload artifacts to the workflow run so they can be inspected even if S3 is not configured
       - name: Upload pipeline artifacts to workflow
         uses: actions/upload-artifact@v4
         with:
           name: pipeline-artifacts
           path: pipeline/artifacts
-
       - name: Sync artifacts to S3
         if: ${{ secrets.S3_BUCKET != '' }}
         run: |

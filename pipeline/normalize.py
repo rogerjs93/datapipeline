@@ -4,7 +4,7 @@ import numpy as np
 from typing import Dict, Any, List
 import joblib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
@@ -73,7 +73,7 @@ def fit_transformers(df: pd.DataFrame, numeric_cols: List[str], categorical_cols
         'artifact': str(artifact_path.name),
         'numeric_columns': numeric_cols,
         'categorical_columns': categorical_cols,
-        'fitted_at': datetime.utcnow().isoformat() + 'Z'
+        'fitted_at': datetime.now(timezone.utc).isoformat()
     }
     (out_dir / f"transformer_metadata_{artifact_prefix}.json").write_text(json.dumps(metadata, indent=2))
     return ct

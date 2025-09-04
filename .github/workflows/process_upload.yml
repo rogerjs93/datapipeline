@@ -7,6 +7,7 @@ on:
 
 jobs:
   process:
+    if: "${{ github.actor != 'github-actions[bot]' }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,12 +63,24 @@ jobs:
               echo "failed at $(date -u +%Y-%m-%dT%H:%M:%SZ) code:$EXIT_CODE" > "$FAILED_MARKER"
             fi
           done
+      - name: Upload process logs as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: process-logs-${{ github.run_id }}
+          path: |
+            standardized/**/process.log
+
+      - name: Remove logs before committing standardized outputs
+        run: |
+          # remove process.log files so they are not committed to the repository
+          rm -f standardized/**/process.log || true
       - name: Commit standardized outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add standardized || true
-          git commit -m "Add standardized outputs for uploads" || true
+          # include [skip ci] so other push-triggered workflows will not run on this automated commit
+          git commit -m "Add standardized outputs for uploads [skip ci]" || true
           git push || true
 
       - name: Comment on upload commit with results
@@ -77,28 +90,30 @@ jobs:
           script: |
             const fs = require('fs');
             const uploads = fs.readFileSync('uploads.txt','utf8').trim().split('\n').filter(Boolean);
+            const artifactName = process.env.ARTIFACT_NAME || `process-logs-${context.runId}`;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             let body = 'Processing complete.\n\n**Files processed:**\n';
             for(const f of uploads){
               const base = f.split('/').pop();
               const out = `standardized/${base}`;
-              const log = `${out}/process.log`;
               const proc = `${out}/.processed`;
               const fail = `${out}/.failed`;
               body += `- ${f} -> ${out} `;
-              // show available markers
               try{
                 const existsProc = fs.existsSync(proc);
                 const existsFail = fs.existsSync(fail);
-                const existsLog = fs.existsSync(log);
                 if(existsProc) body += '(processed) ';
                 if(existsFail) body += '(failed) ';
-                if(existsLog) body += `- [log](${log}) `;
               }catch(e){}
               body += '\n';
             }
+            body += `\nPer-run logs were uploaded as an Actions artifact named **${artifactName}**.\n`;
+            body += `Download logs and other run artifacts from the Actions run: ${runUrl}\n`;
             await github.rest.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
               body,
             });
+        env:
+          ARTIFACT_NAME: process-logs-${{ github.run_id }}
