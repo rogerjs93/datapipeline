@@ -56,3 +56,22 @@ jobs:
           git add standardized || true
           git commit -m "Add standardized outputs for uploads" || true
           git push || true
+
+      - name: Comment on upload commit with results
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const uploads = fs.readFileSync('uploads.txt','utf8').trim().split('\n').filter(Boolean);
+            let body = 'Processing complete.\n\n**Files processed:**\n';
+            for(const f of uploads){
+              const base = f.split('/').pop();
+              body += `- ${f} -> standardized/${base}/\n`;
+            }
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body,
+            });
