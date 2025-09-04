@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DataPipeline - Quick Upload</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 2rem; }
+      .drop { border: 2px dashed #888; padding: 2rem; text-align: center; }
+      input[type=text]{ width: 100%; padding: .5rem; }
+      .small { font-size: 0.9rem; color: #666 }
+    </style>
+  </head>
+  <body>
+    <h1>DataPipeline — Quick Upload</h1>
+    <p>Drop a CSV/Parquet file here and the repository will process it automatically using GitHub Actions.</p>
+
+    <div class="drop" id="drop">Click or drop a file here</div>
+
+    <p>
+      <label>Your GitHub Personal Access Token (will not be stored):</label>
+      <input type="text" id="token" placeholder="Paste a repo token with repo:contents permission"/>
+    </p>
+
+    <p class="small">Notes: you must be a repository collaborator or have permission to push to this repository. The token is only used client-side to create a commit under <code>uploads/</code>. The repository has a workflow that will automatically run the pipeline on new uploads and commit results.</p>
+
+    <pre id="log" style="height:200px; overflow:auto; background:#f6f6f6; padding:1rem"></pre>
+
+    <script>
+    const owner = 'rogerjs93';
+    const repo = 'datapipeline';
+
+    const drop = document.getElementById('drop');
+    const log = document.getElementById('log');
+    const tokenInput = document.getElementById('token');
+
+    function append(msg){ log.textContent += msg + '\n'; log.scrollTop = log.scrollHeight; }
+
+    drop.addEventListener('click', ()=>{
+      const inp = document.createElement('input'); inp.type='file'; inp.onchange = e=>handleFiles(e.target.files); inp.click();
+    });
+
+    drop.addEventListener('dragover', (e)=>{ e.preventDefault(); drop.style.background='#eef'; });
+    drop.addEventListener('dragleave', (e)=>{ drop.style.background=''; });
+    drop.addEventListener('drop', (e)=>{ e.preventDefault(); drop.style.background=''; handleFiles(e.dataTransfer.files); });
+
+    async function handleFiles(files){
+      if(!files || files.length===0) return;
+      const file = files[0];
+      append('Selected: '+file.name+' ('+file.type+' '+file.size+' bytes)');
+      const token = tokenInput.value.trim();
+      if(!token){ append('Error: paste a GitHub token into the field first.'); return; }
+
+      const path = `uploads/${Date.now()}_${file.name}`;
+      append('Uploading to ' + path + ' ...');
+
+      const content = await file.arrayBuffer();
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(content)));
+
+      const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
+      const body = {
+        message: `Upload ${file.name} via Pages UI`,
+        content: b64,
+        branch: 'main'
+      };
+
+      try{
+        const resp = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Authorization': 'token '+token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const j = await resp.json();
+        if(resp.ok){
+          append('Upload committed. GitHub will run the processing workflow automatically.');
+          append('Commit: '+(j.content && j.content.sha));
+        } else {
+          append('Upload failed: ' + (j.message || resp.status));
+          if(j.errors) append(JSON.stringify(j.errors));
+        }
+      }catch(err){ append('Upload error: '+err); }
+    }
+    </script>
+  </body>
+</html>

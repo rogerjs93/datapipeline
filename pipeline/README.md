@@ -62,3 +62,11 @@ streamlit run pipeline/ui.py
 
 The UI allows uploading a source CSV/Parquet and selecting a mapping; it will run the pipeline and write outputs to the selected work directory.
 
+## Quick Upload via GitHub Pages
+
+There is a lightweight static upload page hosted under `docs/` which can be served by GitHub Pages. It lets collaborators drop a file and push it to `uploads/` in this repository (you must paste a GitHub Personal Access Token with `repo:contents` permission to perform the upload).
+
+After a file is pushed to `uploads/`, a GitHub Actions workflow (`.github/workflows/process_upload.yml`) will run the pipeline and commit standardized outputs under `standardized/`.
+
+The static page is at `docs/index.html`; enable GitHub Pages in the repository settings with the `gh-pages` branch or the `main` branch /docs folder.
+
