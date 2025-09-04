@@ -21,16 +21,33 @@ jobs:
       - name: Find uploaded file
         run: |
           echo "Looking for uploaded file(s)"
+          # get list of added files in the push
           UPLOADS=$(git diff --name-only ${{ github.sha }}^ ${{ github.sha }} | grep '^uploads/' || true)
           echo "FILES=$UPLOADS" > uploads.txt
           cat uploads.txt
+          # parse mapping from commit message (format: 'mapping: pipeline/mappings/xxx.yaml')
+          MSG="${{ github.event.head_commit.message }}"
+          echo "COMMIT_MSG=$MSG" > commit_msg.txt
+          echo "$MSG"
       - name: Run pipeline for each upload
         run: |
           set -e
           UPLOADS=$(cat uploads.txt)
+          MSG=$(cat commit_msg.txt)
+          # extract mapping path if present in the commit message
+          MAPPING=$(echo "$MSG" | sed -n 's/.*mapping: \(.*\.yaml\).*/\1/p')
+          echo "Detected mapping: $MAPPING"
           for f in $UPLOADS; do
             echo "Processing $f"
-            python -m pipeline.cli --mapping "" --work-dir "$(pwd)" --s3-bucket "" --s3-prefix ""
+            BASENAME=$(basename "$f")
+            OUTDIR=standardized/${BASENAME}
+            mkdir -p "$OUTDIR"
+            # run pipeline using the uploaded file as the source table; mapping optional
+            if [ -n "$MAPPING" ]; then
+              python -u -m pipeline.cli --mapping "$MAPPING" --work-dir "$(pwd)/$OUTDIR"
+            else
+              python -u -m pipeline.cli --mapping "" --work-dir "$(pwd)/$OUTDIR"
+            fi
           done
       - name: Commit standardized outputs
         run: |

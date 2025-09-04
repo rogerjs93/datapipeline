@@ -3,83 +3,115 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DataPipeline - Quick Upload</title>
+    <title>DataPipeline — Quick Upload</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-      body { font-family: Arial, sans-serif; margin: 2rem; }
-      .drop { border: 2px dashed #888; padding: 2rem; text-align: center; }
-      input[type=text]{ width: 100%; padding: .5rem; }
-      .small { font-size: 0.9rem; color: #666 }
+      body { padding: 2rem; }
+      .drop { border: 2px dashed #adb5bd; padding: 2rem; text-align: center; border-radius: .5rem; }
+      #log { height: 200px; overflow:auto; background:#f8f9fa; padding:1rem; }
     </style>
   </head>
-  <body>
-    <h1>DataPipeline — Quick Upload</h1>
-    <p>Drop a CSV/Parquet file here and the repository will process it automatically using GitHub Actions.</p>
+  <body class="bg-light">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4">DataPipeline — Quick Upload</h1>
+        <a class="btn btn-sm btn-outline-secondary" href="/">Home</a>
+      </div>
 
-    <div class="drop" id="drop">Click or drop a file here</div>
+      <div class="row">
+        <div class="col-md-7">
+          <div id="drop" class="drop mb-3">Click or drop a file here</div>
 
-    <p>
-      <label>Your GitHub Personal Access Token (will not be stored):</label>
-      <input type="text" id="token" placeholder="Paste a repo token with repo:contents permission"/>
-    </p>
+          <div class="mb-3">
+            <label class="form-label">GitHub Personal Access Token (repo:contents)</label>
+            <input id="token" class="form-control" placeholder="Paste token here (not stored)" />
+          </div>
 
-    <p class="small">Notes: you must be a repository collaborator or have permission to push to this repository. The token is only used client-side to create a commit under <code>uploads/</code>. The repository has a workflow that will automatically run the pipeline on new uploads and commit results.</p>
+          <div class="mb-3">
+            <label class="form-label">Choose mapping (optional)</label>
+            <select id="mapping" class="form-select"><option value="">(none)</option></select>
+            <div class="form-text">If you choose a mapping, the processor will try to use it for normalization.</div>
+          </div>
 
-    <pre id="log" style="height:200px; overflow:auto; background:#f6f6f6; padding:1rem"></pre>
+          <div class="mb-3">
+            <button id="uploadBtn" class="btn btn-primary">Upload file</button>
+            <span id="status" class="ms-3 text-muted"></span>
+          </div>
+
+          <div class="mb-3">
+            <h6>Activity</h6>
+            <pre id="log"></pre>
+          </div>
+        </div>
+
+        <div class="col-md-5">
+          <h6>How it works</h6>
+          <p class="small">This page pushes your file into <code>uploads/&lt;timestamp&gt;_filename</code> on the repository using your personal access token. A GitHub Actions workflow triggers on uploads and runs the pipeline; results are committed to <code>standardized/&lt;upload-name&gt;/</code>.</p>
+
+          <h6>Security</h6>
+          <p class="small">The token is only used client-side to call the GitHub API. Don't use a token with broad permissions on a public machine.</p>
+        </div>
+      </div>
+    </div>
 
     <script>
     const owner = 'rogerjs93';
     const repo = 'datapipeline';
-
     const drop = document.getElementById('drop');
     const log = document.getElementById('log');
     const tokenInput = document.getElementById('token');
+    const mappingSelect = document.getElementById('mapping');
+    const status = document.getElementById('status');
+    const uploadBtn = document.getElementById('uploadBtn');
 
     function append(msg){ log.textContent += msg + '\n'; log.scrollTop = log.scrollHeight; }
 
-    drop.addEventListener('click', ()=>{
-      const inp = document.createElement('input'); inp.type='file'; inp.onchange = e=>handleFiles(e.target.files); inp.click();
-    });
-
+    drop.addEventListener('click', ()=>{ const inp = document.createElement('input'); inp.type='file'; inp.onchange = e=>{ window._picked = e.target.files[0]; uploadBtn.disabled=false; }; inp.click(); });
     drop.addEventListener('dragover', (e)=>{ e.preventDefault(); drop.style.background='#eef'; });
     drop.addEventListener('dragleave', (e)=>{ drop.style.background=''; });
-    drop.addEventListener('drop', (e)=>{ e.preventDefault(); drop.style.background=''; handleFiles(e.dataTransfer.files); });
+    drop.addEventListener('drop', (e)=>{ e.preventDefault(); drop.style.background=''; window._picked = e.dataTransfer.files[0]; uploadBtn.disabled=false; });
 
-    async function handleFiles(files){
-      if(!files || files.length===0) return;
-      const file = files[0];
-      append('Selected: '+file.name+' ('+file.type+' '+file.size+' bytes)');
+    uploadBtn.addEventListener('click', async ()=>{
+      const file = window._picked;
+      if(!file){ append('Select a file first'); return; }
       const token = tokenInput.value.trim();
-      if(!token){ append('Error: paste a GitHub token into the field first.'); return; }
+      if(!token){ append('Paste a GitHub token in the token field'); return; }
+      uploadBtn.disabled = true; status.textContent='Uploading...';
 
-      const path = `uploads/${Date.now()}_${file.name}`;
-      append('Uploading to ' + path + ' ...');
+      const basename = `${Date.now()}_${file.name}`;
+      const path = `uploads/${basename}`;
+      const mapping = mappingSelect.value || '';
+      append('Uploading '+file.name+' as '+path);
 
       const content = await file.arrayBuffer();
       const b64 = btoa(String.fromCharCode(...new Uint8Array(content)));
 
+      // include mapping in commit message as 'mapping: <path>' so the workflow can pick it up
+      const message = `Upload ${file.name} via Pages UI mapping: ${mapping}`;
+
       const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
-      const body = {
-        message: `Upload ${file.name} via Pages UI`,
-        content: b64,
-        branch: 'main'
-      };
+      const body = { message, content: b64, branch: 'main' };
 
       try{
-        const resp = await fetch(url, {
-          method: 'PUT',
-          headers: { 'Authorization': 'token '+token, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
+        const resp = await fetch(url, { method:'PUT', headers: { 'Authorization': 'token '+token, 'Content-Type':'application/json' }, body: JSON.stringify(body) });
         const j = await resp.json();
-        if(resp.ok){
-          append('Upload committed. GitHub will run the processing workflow automatically.');
-          append('Commit: '+(j.content && j.content.sha));
-        } else {
-          append('Upload failed: ' + (j.message || resp.status));
-          if(j.errors) append(JSON.stringify(j.errors));
-        }
-      }catch(err){ append('Upload error: '+err); }
+        if(resp.ok){ append('Upload committed. Commit SHA: '+(j.content && j.content.sha)); status.textContent='Committed'; }
+        else { append('Upload failed: '+(j.message||resp.status)); status.textContent='Upload failed'; }
+      }catch(err){ append('Error: '+err); status.textContent='Error'; }
+      uploadBtn.disabled = false;
+    });
+
+    // fetch available mappings (best-effort) if token provided
+    async function loadMappings(){
+      try{
+        const url = `https://api.github.com/repos/${owner}/${repo}/contents/pipeline/mappings`;
+        const resp = await fetch(url);
+        if(!resp.ok) return;
+        const data = await resp.json();
+        for(const item of data){ if(item.name.endsWith('.yaml')){ const opt = document.createElement('option'); opt.value = 'pipeline/mappings/'+item.name; opt.textContent = item.name; mappingSelect.appendChild(opt); }}
+      }catch(e){/* ignore */}
     }
+    loadMappings();
     </script>
   </body>
 </html>
