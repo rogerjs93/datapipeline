@@ -42,6 +42,8 @@ jobs:
             BASENAME=$(basename "$f")
             OUTDIR=standardized/${BASENAME}
             PROCESSED_MARKER="$OUTDIR/.processed"
+            FAILED_MARKER="$OUTDIR/.failed"
+            LOGFILE="$OUTDIR/process.log"
             if [ -f "$PROCESSED_MARKER" ]; then
               echo "Skipping $f because marker exists"
               continue
@@ -49,12 +51,16 @@ jobs:
             mkdir -p "$OUTDIR"
             # run pipeline using the uploaded file as the source table; mapping optional
             if [ -n "$MAPPING" ]; then
-              python -u -m pipeline.cli --mapping "$MAPPING" --work-dir "$(pwd)/$OUTDIR"
+              python -u -m pipeline.cli --mapping "$MAPPING" --work-dir "$(pwd)/$OUTDIR" > "$LOGFILE" 2>&1 || true
             else
-              python -u -m pipeline.cli --mapping "" --work-dir "$(pwd)/$OUTDIR"
+              python -u -m pipeline.cli --mapping "" --work-dir "$(pwd)/$OUTDIR" > "$LOGFILE" 2>&1 || true
             fi
-            # if successful, write a processed marker
-            echo "processed at $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$PROCESSED_MARKER"
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "processed at $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$PROCESSED_MARKER"
+            else
+              echo "failed at $(date -u +%Y-%m-%dT%H:%M:%SZ) code:$EXIT_CODE" > "$FAILED_MARKER"
+            fi
           done
       - name: Commit standardized outputs
         run: |
@@ -74,7 +80,21 @@ jobs:
             let body = 'Processing complete.\n\n**Files processed:**\n';
             for(const f of uploads){
               const base = f.split('/').pop();
-              body += `- ${f} -> standardized/${base}/\n`;
+              const out = `standardized/${base}`;
+              const log = `${out}/process.log`;
+              const proc = `${out}/.processed`;
+              const fail = `${out}/.failed`;
+              body += `- ${f} -> ${out} `;
+              // show available markers
+              try{
+                const existsProc = fs.existsSync(proc);
+                const existsFail = fs.existsSync(fail);
+                const existsLog = fs.existsSync(log);
+                if(existsProc) body += '(processed) ';
+                if(existsFail) body += '(failed) ';
+                if(existsLog) body += `- [log](${log}) `;
+              }catch(e){}
+              body += '\n';
             }
             await github.rest.repos.createCommitComment({
               owner: context.repo.owner,
