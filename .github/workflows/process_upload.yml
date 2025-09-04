@@ -41,6 +41,11 @@ jobs:
             echo "Processing $f"
             BASENAME=$(basename "$f")
             OUTDIR=standardized/${BASENAME}
+            PROCESSED_MARKER="$OUTDIR/.processed"
+            if [ -f "$PROCESSED_MARKER" ]; then
+              echo "Skipping $f because marker exists"
+              continue
+            fi
             mkdir -p "$OUTDIR"
             # run pipeline using the uploaded file as the source table; mapping optional
             if [ -n "$MAPPING" ]; then
@@ -48,6 +53,8 @@ jobs:
             else
               python -u -m pipeline.cli --mapping "" --work-dir "$(pwd)/$OUTDIR"
             fi
+            # if successful, write a processed marker
+            echo "processed at $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$PROCESSED_MARKER"
           done
       - name: Commit standardized outputs
         run: |
