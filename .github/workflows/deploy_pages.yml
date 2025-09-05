@@ -33,3 +33,23 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v1
+
+  smoke-test:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Pages to become available
+        run: |
+          set -e
+          URL="https://rogerjs93.github.io/datapipeline/"
+          echo "Checking $URL"
+          for i in {1..10}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || echo 000)
+            echo "Attempt $i -> HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Pages site is live"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "Pages did not become available"; exit 1
