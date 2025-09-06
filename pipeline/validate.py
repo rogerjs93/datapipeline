@@ -1,12 +1,15 @@
 import json
 from pathlib import Path
-import pandas as pd
 from typing import List
+
+import pandas as pd
 
 from pipeline.models import Vitals
 
 
-def validate_vitals(parquet_path: Path, out_dir: Path, report_prefix: str = 'validation_report') -> None:
+def validate_vitals(
+    parquet_path: Path, out_dir: Path, report_prefix: str = "validation_report"
+) -> None:
     df = pd.read_parquet(parquet_path)
     errors: List[dict] = []
     valid_rows = []
@@ -20,6 +23,7 @@ def validate_vitals(parquet_path: Path, out_dir: Path, report_prefix: str = 'val
             errors.append({"index": int(i), "error": str(e), "row": data})
 
     out_dir.mkdir(parents=True, exist_ok=True)
+
     # convert any pandas timestamps in errors to ISO strings
     def _serialize(obj):
         try:
@@ -28,10 +32,10 @@ def validate_vitals(parquet_path: Path, out_dir: Path, report_prefix: str = 'val
             return obj
 
     for e in errors:
-        if 'row' in e:
-            for k, v in e['row'].items():
-                if hasattr(v, 'isoformat'):
-                    e['row'][k] = _serialize(v)
+        if "row" in e:
+            for k, v in e["row"].items():
+                if hasattr(v, "isoformat"):
+                    e["row"][k] = _serialize(v)
 
     report = {
         "input": str(parquet_path),
@@ -44,7 +48,8 @@ def validate_vitals(parquet_path: Path, out_dir: Path, report_prefix: str = 'val
     report_path = out_dir / f"{report_prefix}.json"
     report_path.write_text(json.dumps(report, indent=2))
 
-    # write cleaned parquet of valid rows (write empty file if none valid to keep outputs stable)
+    # write cleaned parquet of valid rows. If none valid, write an empty file to
+    # keep outputs stable
     valid_path = out_dir / f"{report_prefix}_valid.parquet"
     if valid_rows:
         pd.DataFrame(valid_rows).to_parquet(valid_path, index=False)
@@ -54,7 +59,7 @@ def validate_vitals(parquet_path: Path, out_dir: Path, report_prefix: str = 'val
         empty.to_parquet(valid_path, index=False)
 
 
-if __name__ == '__main__':
-    base = Path(__file__).parent / 'standardized'
-    p = base / 'vitals.parquet'
+if __name__ == "__main__":
+    base = Path(__file__).parent / "standardized"
+    p = base / "vitals.parquet"
     validate_vitals(p, base)
